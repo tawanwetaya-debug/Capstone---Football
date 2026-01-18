@@ -1,0 +1,43 @@
+# ----------------------------
+# Core runtime
+# ----------------------------
+python-dotenv==1.0.1
+requests==2.32.3
+pydantic==2.10.6
+python-dateutil==2.9.0.post0
+
+# ----------------------------
+# Data handling
+# ----------------------------
+pandas==2.2.3
+pyarrow==18.1.0
+
+# ----------------------------
+# Snowflake connectivity
+# ----------------------------
+snowflake-connector-python==3.12.4
+snowflake-sqlalchemy==1.6.1
+SQLAlchemy==2.0.36
+
+# ----------------------------
+# Orchestration (Dagster)
+# ----------------------------
+dagster==1.9.10
+dagster-webserver==1.9.10
+
+# If you want schedules/daemon in Docker:
+dagster-docker==0.25.10
+
+# ----------------------------
+# Quality / logging
+# ----------------------------
+loguru==0.7.2
+tenacity==9.0.0
+
+# ----------------------------
+# Dev tools (optional but nice)
+# ----------------------------
+black==24.10.0
+ruff==0.7.4
+pytest==8.3.3
+
