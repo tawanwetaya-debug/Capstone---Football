@@ -22,7 +22,7 @@ def fetch_team_transfer(team_id: int) -> Dict[str, Any]:
         "team": team_id
     }
 
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, headers=headers, params=params,timeout=30)
 
     if response.status_code == 200:
         return response.json()
@@ -47,7 +47,7 @@ def fetch_player_transfer(player_id: int) -> Dict[str, Any]:
         "player": player_id
     }
 
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, headers=headers, params=params,timeout=30)
 
     if response.status_code == 200:
         return response.json()

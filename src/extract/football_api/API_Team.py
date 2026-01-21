@@ -33,28 +33,6 @@ def fetch_team_ID_from_League(league_id: int, season: int) -> Optional[Dict[str,
         print(f"Error fetching data for league {league_id}: {response.status_code} - {response.text}")
         return None
     
-@rate_limited(API_SPORTS_DAILY_LIMITER)
-@rate_limited(API_SPORTS_MINUTE_LIMITER)
-def fetch_team_data(team_id: int, season: int) -> Optional[Dict[str, Any]]:
-    load_dotenv()
-    if not api_key:
-        raise ValueError("API key not found. Please set FOOTBALL_API_KEY in your environment variables.")
-    api_key = os.getenv("FOOTBALL_API_KEY")
-    url = f"{BASE_URL}/teams"
-    headers = {
-        "x-apisports-key": api_key
-    }
-    params = {
-        "season": season
-    }
-
-    response = requests.get(url, headers=headers, params=params,timeout=30)
-
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Error fetching data for team {team_id}: {response.status_code} - {response.text}")
-        return None
 
 @rate_limited(API_SPORTS_DAILY_LIMITER)
 @rate_limited(API_SPORTS_MINUTE_LIMITER)

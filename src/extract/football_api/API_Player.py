@@ -9,7 +9,7 @@ BASE_URL = "https://v3.football.api-sports.io"
 # Fetch Player from team Squad from Football API
 @rate_limited(API_SPORTS_DAILY_LIMITER)
 @rate_limited(API_SPORTS_MINUTE_LIMITER)
-def fetch_team_squad(team_id: int, season: int, league_id: int) -> Optional[Dict[str, Any]]:
+def fetch_team_squad(team_id: int, season: int, league_id: int, date: Optional[str] = None) -> Optional[Dict[str, Any]]:
     load_dotenv()
     api_key = os.getenv("FOOTBALL_API_KEY")
     if not api_key:
@@ -23,7 +23,9 @@ def fetch_team_squad(team_id: int, season: int, league_id: int) -> Optional[Dict
         "season": season,
         "league": league_id
     }
-    response = requests.get(url, headers=headers, params=params)
+
+    
+    response = requests.get(url, headers=headers, params=params,timeout=30)
     if response.status_code == 200:
         return response.json()
     else:
@@ -47,7 +49,7 @@ def fetch_player_trophies(player_id: int) -> Optional[Dict[str, Any]]:
     params = {
         "player": player_id
     }
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, headers=headers, params=params,timeout=30)
     if response.status_code == 200:
         return response.json()
     else:
