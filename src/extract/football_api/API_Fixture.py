@@ -167,3 +167,4 @@ def fetch_match_odd(fixture_id: int):
     else:
         print(f"Error fetching odd betting {fixture_id}: {response.status_code} - {response.text}")
         return None    
+    

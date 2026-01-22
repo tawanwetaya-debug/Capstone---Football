@@ -12,7 +12,7 @@ BASE_URL = "https://v3.football.api-sports.io"
 @rate_limited(API_SPORTS_DAILY_LIMITER)
 @rate_limited(API_SPORTS_MINUTE_LIMITER)
 def fetch_league_data(league_id: int, season: int) -> Optional[Dict[str, Any]]:
-    load_dotenv()
+    load_dotenv("env.sv")
     api_key = os.getenv("FOOTBALL_API_KEY")
     if not api_key:
         raise ValueError("API key not found. Please set FOOTBALL_API_KEY in your environment variables.")

@@ -9,19 +9,17 @@ BASE_URL = "https://v3.football.api-sports.io"
 # Fetch Player from team Squad from Football API
 @rate_limited(API_SPORTS_DAILY_LIMITER)
 @rate_limited(API_SPORTS_MINUTE_LIMITER)
-def fetch_team_squad(team_id: int, season: int, league_id: int, date: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    load_dotenv()
+def fetch_team_squad(team_id: int, date: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    load_dotenv("env.sv")
     api_key = os.getenv("FOOTBALL_API_KEY")
     if not api_key:
         raise ValueError("API key not found. Please set FOOTBALL_API_KEY in your environment variables.")
-    url = f"{BASE_URL}/players"
+    url = f"{BASE_URL}/players/squads"
     headers = {
         "x-apisports-key": api_key
     }   
     params = {
         "team": team_id,
-        "season": season,
-        "league": league_id
     }
 
     
@@ -37,21 +35,21 @@ def fetch_team_squad(team_id: int, season: int, league_id: int, date: Optional[s
 #Fetch Player Trophy from Football API
 @rate_limited(API_SPORTS_DAILY_LIMITER)
 @rate_limited(API_SPORTS_MINUTE_LIMITER)
-def fetch_player_trophies(player_id: int) -> Optional[Dict[str, Any]]:
-    load_dotenv()
+def fetch_player_trophies_bulk(player_ids: List[int]) -> Dict[str, Any]:
+    load_dotenv("env.sv")
     api_key = os.getenv("FOOTBALL_API_KEY")
     if not api_key:
         raise ValueError("API key not found. Please set FOOTBALL_API_KEY in your environment variables.")
-    url = f"{BASE_URL}/players/trophies"
+    url = f"{BASE_URL}/trophies"
     headers = {
         "x-apisports-key": api_key
     }   
     params = {
-        "player": player_id
+        "players": "-".join(map(str, player_ids))
     }
     response = requests.get(url, headers=headers, params=params,timeout=30)
     if response.status_code == 200:
         return response.json()
     else:
-        print(f"Error fetching trophies for player {player_id}: {response.status_code} - {response.text}")
+        print(f"Error fetching trophies for player : {response.status_code} - {response.text}")
         return None
