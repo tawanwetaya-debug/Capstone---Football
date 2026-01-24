@@ -1,6 +1,6 @@
 from src.extract.football_api.api_league import fetch_league_data
 from src.extract.football_api.api_team import fetch_team_ID_from_League,fetch_team_statistics
-from src.extract.football_api.api_player import fetch_team_squad, fetch_player_trophies_bulk
+from src.extract.football_api.api_player import fetch_team_squad, fetch_player_trophies_bulk,fetch_player_statistics_by_season
 from src.extract.football_api.api_transfer import fetch_player_transfer, fetch_team_transfer
 from typing import Optional, Tuple, List, Dict, Any
 import json
@@ -251,32 +251,61 @@ def extract_team_transfer(team_id: int,
 
     return raw_rows
 
+def extract_players_statisitics_byseason(team_id: int,
+    season: int,
+    league_id: int,
+     limit: Optional[int] = None
+) -> List[Dict[str, Any]]:
+
+    team_record = fetch_player_statistics_by_season(team_id = team_id,season=season,league_id=league_id)
+    if not team_record:
+        return []
+    
+    data = team_record.get("response", []) or []
+
+    if limit is not None:
+        data = data[:limit]
+
+    raw_rows: List[Dict[str, Any]] = []
+
+    for item in data:
+        raw_rows.append({
+            "team_id": team_id,
+            "extracted_at": datetime.now(timezone.utc).isoformat(),
+            "source": "https://www.api-football.com/",
+            "payload": item
+        })
+
+    return raw_rows
+
 if __name__ == "__main__":
     league_id = 39  # Premier League
     season = 2024
     limit = 3
 
-    # # 1. Fetch league metadata
-    league_data = extract_league_data(league_id=league_id, season=season)
-    print("Extract league data")
-    export_json(
-        data=league_data,
-        prefix=f"league_l{league_id}_s{season}"
-    )
+    # # # 1. Fetch league metadata
+    # league_data = extract_league_data(league_id=league_id, season=season)
+    # print("Extract league data")
+    # export_json(
+    #     data=league_data,
+    #     prefix=f"league_l{league_id}_s{season}"
+    # )
 
-    # 2. Extract teams_info and teams_statistics from league
-    stats_rows, errors = extract_team_statistics(
-        league_id=league_id,
-        season=season,
-        limit=limit
-    )
+    # # 2. Extract teams_info and teams_statistics from league
+    # stats_rows, errors = extract_team_statistics(
+    #     league_id=league_id,
+    #     season=season,
+    #     limit=limit
+    # )
 
-    print("stats_rows:", len(stats_rows))
-    print("errors:", errors)
+    # print("stats_rows:", len(stats_rows))
+    # print("errors:", errors)
 
-    export_json(data=stats_rows, prefix=f"team_stats_l{league_id}_s{season}")
-    if errors:
-        export_json(data=errors, prefix=f"errors_team_stats_l{league_id}_s{season}")
+    # export_json(data=stats_rows, prefix=f"team_stats_l{league_id}_s{season}")
+    # if errors:
+    #     export_json(data=errors, prefix=f"errors_team_stats_l{league_id}_s{season}")
+
+
 
 
 # 3. Extract team squad, team transfer, player transfer, player trophy
@@ -295,35 +324,37 @@ if team_errors:
 
 for team_id in team_ids:
     # --- Team squad ---
-    player_ids, squad_rows, squad_errors = extract_team_squad_player_ids(
-        team_id=team_id,
-        limit=limit
-    )
+    # player_ids, squad_rows, squad_errors = extract_team_squad_player_ids(
+    #     team_id=team_id,
+    #     limit=limit
+    # )
 
-    print("len player_ids:", len(player_ids))
-    print("len squad_rows:", len(squad_rows))
-    print("first row:", squad_rows[0] if squad_rows else None)
+    # print("len player_ids:", len(player_ids))
+    # print("len squad_rows:", len(squad_rows))
+    # print("first row:", squad_rows[0] if squad_rows else None)
 
-    export_json(data=player_ids, prefix=f"team_squads_l{league_id}_s{season}_t{team_id}")
+    # export_json(data=player_ids, prefix=f"team_squads_l{league_id}_s{season}_t{team_id}")
 
-    if squad_errors:
-        export_json(data=squad_errors, prefix=f"errors_team_squad_l{league_id}_s{season}_t{team_id}")
+    # if squad_errors:
+    #     export_json(data=squad_errors, prefix=f"errors_team_squad_l{league_id}_s{season}_t{team_id}")
 
-    # --- Team transfer (independent from squad errors) ---
-    team_transfer_rows = extract_team_transfer(team_id=team_id)
-    export_json(data=team_transfer_rows, prefix=f"team_transfer_l{league_id}_s{season}_t{team_id}")
+    # # --- Team transfer (independent from squad errors) ---
+    # team_transfer_rows = extract_team_transfer(team_id=team_id)
+    # export_json(data=team_transfer_rows, prefix=f"team_transfer_l{league_id}_s{season}_t{team_id}")
 
 
-    team_player_trophies, errors = extract_player_trophies_batched(player_ids = player_ids, team_id=team_id)
-    export_json(data=team_player_trophies, prefix=f"player_trophies_team {team_id}")
-    if errors:
-        export_json(data=errors, prefix=f"player_trophies_team_{team_id}_errors" )
+    # team_player_trophies, errors = extract_player_trophies_batched(player_ids = player_ids, team_id=team_id)
+    # export_json(data=team_player_trophies, prefix=f"player_trophies_team {team_id}")
+    # if errors:
+    #     export_json(data=errors, prefix=f"player_trophies_team_{team_id}_errors" )
 
-    # # --- Player-level stuff ---
-    for player_id in player_ids:
-        # Player transfer
-        player_transfer_rows = extract_player_transfer(player_id=player_id,limit=limit)
-        export_json(data=player_transfer_rows, prefix=f"player_transfer_p{player_id}")
-
+    # # # --- Player-level stuff ---
+    # for player_id in player_ids:
+    #     # Player transfer
+    #     player_transfer_rows = extract_player_transfer(player_id=player_id,limit=limit)
+    #     export_json(data=player_transfer_rows, prefix=f"player_transfer_p{player_id}")
+    
+    player_statistics = extract_players_statisitics_byseason(season=season,team_id=team_id,league_id=league_id)
+    export_json(data=player_statistics, prefix=f"player_statistics_l{league_id}_s{season}_t{team_id}")
 
   

@@ -53,3 +53,64 @@ def fetch_player_trophies_bulk(player_ids: List[int]) -> Dict[str, Any]:
     else:
         print(f"Error fetching trophies for player : {response.status_code} - {response.text}")
         return None
+
+# Fetch Player Statistics by Season 
+@rate_limited(API_SPORTS_DAILY_LIMITER)
+@rate_limited(API_SPORTS_MINUTE_LIMITER)
+def fetch_player_statistics_by_season(
+    team_id: int,
+    season: int,
+    league_id: int
+) -> Optional[Dict[str, Any]]:
+
+    load_dotenv("env.sv")
+    api_key = os.getenv("FOOTBALL_API_KEY")
+    if not api_key:
+        raise ValueError("API key not found. Please set FOOTBALL_API_KEY in your environment variables.")
+
+    url = f"{BASE_URL}/players"
+    headers = {"x-apisports-key": api_key}
+
+    all_response = []
+    page = 1
+
+    while True:
+        params = {
+            "team": team_id,
+            "league": league_id,
+            "season": season,
+            "page": page
+        }
+
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+
+        if response.status_code != 200:
+            print(
+                f"Error fetching players stats "
+                f"(team={team_id}, page={page}): "
+                f"{response.status_code} - {response.text}"
+            )
+            break
+
+        payload = response.json()
+        data = payload.get("response", [])
+        paging = payload.get("paging", {})
+
+        if not data:
+            break
+
+        all_response.extend(data)
+
+        if paging.get("current") >= paging.get("total"):
+            break
+
+        page += 1
+
+    return {
+        "team_id": team_id,
+        "league_id": league_id,
+        "season": season,
+        "results": len(all_response),
+        "response": all_response
+    }
+    

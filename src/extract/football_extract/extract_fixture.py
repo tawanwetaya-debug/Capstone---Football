@@ -240,7 +240,7 @@ if __name__ == "__main__":
     
     fixture_map = {r.get("fixture_id"): r for r in fixture_rows}
 
-    for fixture_id in fixture_ids:
+    # for fixture_id in fixture_ids:
         # # 2) events
         # event_rows, event_errors = extract_fixture_events(fixture_id=fixture_id)
         # print(f"extract fixture events {fixture_id}")
@@ -306,23 +306,23 @@ if __name__ == "__main__":
         #         print("player stat errors:", player_errors)
 
         # 6) extract match predictions 
-        raw_rows, errors = extract_fixture_predictions(fixture_id=fixture_id)
-        print(f"extract match_prediction_{fixture_id}")
+        # raw_rows, errors = extract_fixture_predictions(fixture_id=fixture_id)
+        # print(f"extract match_prediction_{fixture_id}")
             
-        export_json(
-            data=raw_rows,
-            prefix=f"match_prediction_{league_id}_s{season}_f{fixture_id}"
-        )
-        if errors:
-            print("event errors:", errors)
+        # export_json(
+        #     data=raw_rows,
+        #     prefix=f"match_prediction_{league_id}_s{season}_f{fixture_id}"
+        # )
+        # if errors:
+        #     print("event errors:", errors)
         
         #7 extract fixture odds
-        raw_rows, errors = extract_fixture_odds(fixture_id=fixture_id)
-        print(f"extract_fixture_odds_{fixture_id}")
-        export_json(
-            data=raw_rows,
-            prefix=f"fixture_odd_{league_id}_s{season}_f{fixture_id}"
-        )
-        if errors:
-            print("event errors:", errors)
+        # raw_rows, errors = extract_fixture_odds(fixture_id=fixture_id)
+        # print(f"extract_fixture_odds_{fixture_id}")
+        # export_json(
+        #     data=raw_rows,
+        #     prefix=f"fixture_odd_{league_id}_s{season}_f{fixture_id}"
+        # )
+        # if errors:
+        #     print("event errors:", errors)
         
