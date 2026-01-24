@@ -3,6 +3,7 @@ from typing import Optional, Tuple, List, Dict, Any
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 def export_json(data: dict, prefix: str):
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -219,26 +220,98 @@ def extract_fixture_odds(fixture_id: int,limit: Optional[int] = None) -> Tuple[L
     return raw_rows, errors
 
 
+LIVE_CODES = {"1H", "2H", "HT", "ET", "BT", "P", "INT"}
+
+def extract_league_fixture_live_today(
+    league_id: int,
+    season: int,
+    limit: int | None = None,
+):
+    today = datetime.now(ZoneInfo("Asia/Bangkok")).date().isoformat()
+
+    fixture_ids, rows, errors = extract_league_fixture(
+        league_id=league_id,
+        season=season,
+        date=today,
+        limit=limit
+    )
+
+    # filter only live rows
+    live_rows = []
+    live_ids = []
+
+    for r in rows:
+        status = (r.get("payload", {}) or {}).get("fixture", {}).get("status", {}) or {}
+        code = status.get("short")
+        if code in LIVE_CODES:
+            r["feed_type"] = "live"
+            live_rows.append(r)
+            live_ids.append(r["fixture_id"])
+
+    return live_ids, live_rows, errors
+
+
 if __name__ == "__main__":
     league_id = 39  # Premier League
     season = 2025
     limit = 3
 
-    # 1) extract fixture_id(s)
-    fixture_ids, fixture_rows, errors = extract_league_fixture(
+    # 1) extract live fixtures (today + status filter)
+    live_ids, live_rows, errors = extract_league_fixture_live_today(
         league_id=league_id,
         season=season,
         limit=limit
     )
 
+    export_json(
+        data=live_rows,
+        prefix=f"league_fixture_live_l{league_id}_s{season}"
+    )
+    if errors:
+        print("fixture live errors:", errors)
+
+    if not live_ids:
+        print("No live fixtures right now.")
+
+    # 2) extract events for each live fixture
+    for fixture_id in live_ids:
+        event_rows, ev_errors = extract_fixture_events(fixture_id=fixture_id)
+
+        export_json(
+            data=event_rows,
+            prefix=f"league_fixture_live_events_f{fixture_id}_l{league_id}_s{season}"
+        )
+
+        if ev_errors:
+            print(f"fixture {fixture_id} event errors:", ev_errors)
+
+
+        raw_rows, ev_errors = extract_fixture_odds(fixture_id=fixture_id)
+
+        export_json(
+            data=raw_rows,
+            prefix=f"fixture_live_odds_f{fixture_id}_l{league_id}_s{season}"
+        )
+
+        if ev_errors:
+            print(f"fixture {raw_rows} event errors:", ev_errors)
+
+
+    # 1) extract fixture_id(s)
+    # fixture_ids, fixture_rows, errors = extract_league_fixture(
+    #     league_id=league_id,
+    #     season=season,
+    #     limit=limit
+    # )
+
     # export_json(
     #     data=fixture_rows,
     #     prefix=f"league_fixture_l{league_id}_s{season}"
     # )
-    if errors:
-        print("fixture list errors:", errors)
+    # if errors:
+    #     print("fixture list errors:", errors)
     
-    fixture_map = {r.get("fixture_id"): r for r in fixture_rows}
+    # fixture_map = {r.get("fixture_id"): r for r in fixture_rows}
 
     # for fixture_id in fixture_ids:
         # # 2) events
