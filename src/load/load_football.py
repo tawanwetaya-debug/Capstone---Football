@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 import requests
 import snowflake.connector
 from dotenv import load_dotenv
-from src.extract.football_extract.extract_football import extract_team_ids, extract_team_statistics, extract_league_data, extract_team_transfer,extract_team_squad_player_ids
+from src.extract.football_extract.extract_football import extract_team_ids, extract_team_statistics, extract_league_data, extract_team_transfer,extract_team_squad_player_ids, extract_players_statisitics_byseason, extract_player_trophies_batched
 from src.load.base import save_cursor,load_cursor
 
 
@@ -18,6 +18,7 @@ def now_ingested():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 def snowflake_conn():
+    load_dotenv("env.sv")
     return snowflake.connector.connect(
         account=os.getenv("SNOWFLAKE_ACCOUNT"),
         user=os.getenv("SNOWFLAKE_USER"),
@@ -62,7 +63,7 @@ def main():
 
     # League_ID 39 = Premier League, 140 = La Liga, 135 = Serie A, 78 = Bundesliga, 61 = Ligue 1
     league_ids = [39,140,135,78,61]  # Premier League, La Liga   
-    seasons = [2018,2019,2020,2021,2022,2023,2024]
+    seasons = [2025] #2018,2019,2020,2021,2022,2023,2024,
 
     cursor = load_cursor()
     start_lg_i = cursor.get("league_i", 0)
@@ -71,6 +72,9 @@ def main():
     start_page_i = cursor.get("page",1)
     stage = cursor.get("stage", "league_info")  # if missing, start at league_info
 
+    # ========================
+    # 1) extract football information
+    # ========================
     try:
         for lg_i in range(start_lg_i, len(league_ids)):
             lg = league_ids[lg_i]
@@ -81,23 +85,29 @@ def main():
                 # ========================
                 # 1) league information
                 # ========================
-                stage = "league_info"
+                # stage = "league_info"
 
-                league_rows = extract_league_data(league_id=lg, season=ss)  # list[dict]
-                for r in league_rows:
-                    insert_raw(
-                        conn,
-                        "FOOTBALL.RAW.RAW_LEAGUE",
-                        ["ingested_at", "league_id", "season", "payload"],
-                        [now_ingested(), r["league_id"], r["season"], json.dumps(r["payload"])]
-                    )
-                conn.commit()
+                # if ss == 2025:
+                #     league_rows = extract_league_data(league_id=lg, season=ss)  # list[dict]
+                #     for r in league_rows:
+                #         insert_raw(
+                #             conn,
+                #             "FOOTBALL_CAPSTONE.RAW.RAW_LEAGUE",
+                #             ["ingested_at", "league_id", "season", "payload"],
+                #             [now_ingested(), r["league_id"], r["season"], json.dumps(r["payload"])]
+                #         )
+                #     conn.commit()
+                # else:
+                #     continue
 
-                save_cursor(lg_i, ss_i, 0)  # done league_info (team index reset)
+                # save_cursor(lg_i, ss_i, 0)  # done league_info (team index reset)
+                # print(f'beginning fetch data for league {lg}{ss}')
 
                 # ========================
                 # 2) team information (resumable)
                 # ========================
+                
+
                 stage = "team_info"
 
                 team_ids, team_rows, errors = extract_team_ids(league_id=lg, season=ss)
@@ -106,78 +116,195 @@ def main():
                 start_team = start_team_i if (lg_i == start_lg_i and ss_i == start_ss_i) else 0
 
                 # Make a lookup so we can insert team payload by team_id
-                team_row_by_id = {row["team_id"]: row for row in team_rows}
+                # team_row_by_id = {row.get("team_id"): row for row in team_rows if row.get("payload") and row["payload"].get("team") and row["payload"]["team"].get("id") is not None
+# }
+#                 for team_i in range(start_team, len(team_ids)):
+#                 for team_i in range(start_team, len(team_ids)):
+#                     team_id = team_ids[team_i]
 
-                for team_i in range(start_team, len(team_ids)):
-                    team_id = team_ids[team_i]
+                    # row = team_row_by_id.get(team_id)
+                    # if not row:
+                    #     print(f"SKIP team_id={team_id} (not found in team_rows)")
+                    #     # if API returned ids but not rows (rare), skip safely
+                    #     continue
 
-                    row = team_row_by_id.get(team_id)
-                    if not row:
-                        # if API returned ids but not rows (rare), skip safely
-                        continue
+                    # insert_raw(
+                    #     conn,
+                    #     "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_INFO",
+                    #     ["ingested_at", "league_id", "season", "team_id", "payload"],
+                    #     [now_ingested(), lg, ss, team_id, json.dumps(row["payload"])]
+                    # )
+                    # conn.commit()
 
-                    insert_raw(
-                        conn,
-                        "FOOTBALL.RAW.RAW_TEAMS_INFO",
-                        ["ingested_at", "league_id", "season", "team_id", "payload"],
-                        [now_ingested(), lg, ss, team_id, json.dumps(row["payload"])]
-                    )
-                    conn.commit()
+                    # # ✅ save NEXT team index (resume point)
+                    # save_cursor(lg_i, ss_i, team_i + 1)
 
-                    # ✅ save NEXT team index (resume point)
-                    save_cursor(lg_i, ss_i, team_i + 1)
 
-                # optional: after finishing team_info fully for this season, reset team cursor
-                save_cursor(lg_i, ss_i, 0)
-
+                # print(f'beginning fetch transfer data for league {lg}{ss}')
 
                 # ========================
                 # 3) team transfers (resumable)
                 # ========================
-                stage = "team_transfers"
+                if ss == 2025:
+                    stage = "team_transfers"
 
-                # If you want transfers to resume from its own position,
-                # you should load start_team_i for transfers stage.
-                # If you're using one cursor for everything, this works the same way:
-                start_team = start_team_i if (lg_i == start_lg_i and ss_i == start_ss_i) else 0
+                    # If you want transfers to resume from its own position,
+                    # you should load start_team_i for transfers stage.
+                    # If you're using one cursor for everything, this works the same way:
+                    start_team = start_team_i if (lg_i == start_lg_i and ss_i == start_ss_i) else 0
+      
 
-                for team_i in range(start_team, len(team_ids)):
-                    team_id = team_ids[team_i]
+                    for team_i in range(start_team, len(team_ids)):
+                        team_id = team_ids[team_i]
+                        print(f'beginning fetch data for team {team_id} in league {lg}{ss}')
+                        transfer_rows = extract_team_transfer(team_id=team_id)
 
-                    transfer_rows, all_errors = extract_team_transfer(team_id=team_id)
+                        for r in transfer_rows:
+                            insert_raw(
+                                conn,
+                                "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_TRANSFER",
+                                ["ingested_at", "league_id", "season", "team_id", "payload"],
+                                # ✅ use ss directly (don’t rely on r["season"] existing)
+                                [now_ingested(), lg, ss, team_id, json.dumps(r["payload"])]
+                            )
+                        print(f'finish fetch data for team {team_id} in league {lg}{ss}')
+                        conn.commit()
 
-                    for r in transfer_rows:
-                        insert_raw(
-                            conn,
-                            "FOOTBALL.RAW.RAW_TEAMS_TRANSFER",
-                            ["ingested_at", "league_id", "season", "team_id", "payload"],
-                            # ✅ use ss directly (don’t rely on r["season"] existing)
-                            [now_ingested(), lg, ss, team_id, json.dumps(r["payload"])]
-                        )
+                        # ✅ save NEXT team index
+                    # save_cursor(lg_i, ss_i, team_i + 1)
 
-                    conn.commit()
-
-                    # ✅ save NEXT team index
-                    save_cursor(lg_i, ss_i, team_i + 1)
-
-                # optional: after finishing transfers fully for this season, reset team cursor
-                save_cursor(lg_i, ss_i, 0)
+            # optional: after finishing transfers fully for this season, reset team cursor
+            # save_cursor(lg_i, ss_i, 0)
 
                 # ========================
                 # 3) team statistics
                 # ========================
-                stage = "team_stats"
+        #         stage = "team_stats"
 
-                stats_rows, all_errors = extract_team_statistics(league_id=lg, season=ss)
-                for r in stats_rows:
-                    insert_raw(
-                        conn,
-                        "FOOTBALL.RAW.RAW_TEAMS_STATSTICIS",
-                        ["ingested_at", "league_id", "season", "team_id", "payload"],
-                        [now_ingested(), r["league_id"], r["season"], r["team_id"], json.dumps(r["payload"])]
-                    )
-                conn.commit()
+        #         print(f"beginning fetch team statistics: league={lg} season={ss}")
 
-                save_cursor(lg_i, ss_i, 0)  # done team_stats (team index reset)
+        #         # unpack correctly
+        #         stats_rows, errors = extract_team_statistics(league_id=lg, season=ss)
+
+        #         print("team_stats rows:", len(stats_rows), "errors:", len(errors))
+
+        #         for r in stats_rows:
+        #             insert_raw(
+        #                 conn,
+        #                 "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_STATISTICS",
+        #                 ["ingested_at", "league_id", "season", "team_id", "payload"],
+        #                 [now_ingested(), r["league_id"], r["season"], r["team_id"], json.dumps(r["payload"])]
+        #             )
+
+        #         conn.commit()
+
+        #         if errors:
+        #             print("team_statistics errors (first 3):", errors[:3])
+
+        #         save_cursor(lg_i, ss_i, 0)  # done team_stats (team index reset)
                 
-              
+        #         # ========================
+        #         # 4) players statisitics
+        #         # ========================
+        #         stage = "player_stats"
+
+        #         print(f'beginning fetch player statistics for league {team_id}{lg}{ss}')
+
+        #         stats_rows = extract_players_statisitics_byseason(league_id=lg, season=ss, team_id=team_id)
+                
+        #         print("players_stats rows:", len(stats_rows), "errors:", len(errors))
+
+        #         for r in stats_rows:
+        #             insert_raw(
+        #                 conn,
+        #                 "FOOTBALL_CAPSTONE.RAW.RAW_PLAYERS_STATSTICIS",
+        #                 ["ingested_at", "league_id", "season", "team_id", "payload"],
+        #                 [now_ingested(), lg, ss, r["team_id"], json.dumps(r["payload"])]
+        #             )
+        #         conn.commit()
+
+        #         save_cursor(lg_i, ss_i, 0)  # done team_stats (team index reset)
+
+
+            #         # ========================
+            #         # 6) team squad ids 
+            #         # ========================
+                    # Only look for team squad ids if season is in  2025
+                # if ss == 2025:
+                    
+                        # stage = 'team_squads'
+                        # print(f"beginning fetch team squad and trophies: league={lg} season={ss}")
+
+                        # player_ids, squad_rows, errors = extract_team_squad_player_ids(team_id=team_id)
+
+                        # for r in squad_rows:
+                        #     insert_raw(
+                        #             conn,
+                        #             "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_SQUADS",
+                        #             ["ingested_at", "league_id", "season", "team_id", "payload"],
+                        #             [now_ingested(), lg, ss, r["team_id"], json.dumps(r["payload"])]
+                        #         )
+
+                        #     conn.commit()                        
+
+                        # if errors:
+                        #     print("team_squads errors (first 3):", errors[:3])
+                        #     continue
+
+            #         # ========================
+            #         # 7) squad trophies batch 
+            #         # ========================
+
+                    # stage = "player_trophies"
+
+
+                    # all_player_ids = []
+
+                    # for team_id in team_ids:
+                    #     print(f'beginning fetch data for team {team_id} in league {lg}{ss}')
+                    #     player_ids, squad_rows, errors = extract_team_squad_player_ids(team_id)
+                    #     all_player_ids.extend(player_ids)
+
+
+                    # if errors:
+                    #     save_cursor(lg_i, ss_i, team_i+1)  # หรือ team_i+1 แล้วแต่คุณอยาก skip
+                    #     continue    
+
+                    # unique_player_ids = sorted(set(all_player_ids))
+
+                    # rows, errors = extract_player_trophies_batched(player_ids=unique_player_ids,team_id = team_id, batch_size=20)
+
+                    # print(f"[trophy] done api: rows={len(rows)} errors={len(errors) if errors else 0}")
+                    # print("[trophy] start snowflake insert...")
+                    # print("[trophy] done snowflake insert")
+                    # for r in rows:
+                    #             # print("type(r):", type(r))
+                    #             # print("r sample:", r)
+
+                    #         insert_raw(
+                    #             conn,
+                    #             "FOOTBALL_CAPSTONE.RAW.RAW_PLAYER_TROPHIES",
+                    #             ["ingested_at", "league_id", "season", "team_id", "payload"],
+                    #             [now_ingested(), lg, ss, team_id, json.dumps(r["payload"])]
+                            
+                    #         )
+                    #         conn.commit()    
+                    
+
+   
+
+
+                    # after finishing seasons for this league -> reset season cursor
+                    # save_cursor(lg_i, ss_i + 1, 0)
+
+
+                # # all done -> reset cursor
+                # save_cursor(lg_i + 1, 0, 0)
+
+
+
+    finally:
+        conn.close()
+
+if __name__ == "__main__":
+    main()                                    

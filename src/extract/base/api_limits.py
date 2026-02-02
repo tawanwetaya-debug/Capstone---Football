@@ -4,8 +4,8 @@ from src.extract.base.rate_limiter import RateLimiter
 
 # Short-term (burst)
 API_SPORTS_MINUTE_LIMITER = RateLimiter(
-    calls=30,
-    period_seconds=60
+    calls=100,
+    period_seconds=10
 )
 
 # Long-term (daily quota)

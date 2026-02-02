@@ -169,23 +169,6 @@ def fetch_match_odd(fixture_id: int):
         print(f"Error fetching odd betting {fixture_id}: {response.status_code} - {response.text}")
         return None    
     
-def fetch_fixtures_live(league_id: int = None):
-    params = {"live": "all"}
-    load_dotenv("env.sv")
-    api_key = os.getenv("FOOTBALL_API_KEY")
-    headers = {
-        "x-apisports-key": api_key
-    }    
-    
-    if league_id:
-        params["league"] = league_id
 
-    response = requests.get(url, headers=headers, params=params, timeout=30)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Error fetching live event {league_id}: {response.status_code} - {response.text}")
-        return None      
-    
     
     

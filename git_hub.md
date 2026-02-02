@@ -3,7 +3,8 @@ git commit -m "Add env example for configuration"
 git push origin main
 
 
-python -m src.extract.football_extract.extract_football
+py -m src.extract.football_extract.extract_football
 source .venv/Scripts/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+py -m pip install --upgrade pip
+py -m pip install -r requirements.txt
+py -m venv .venv
