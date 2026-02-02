@@ -121,9 +121,9 @@ def extract_fixture_lineups(fixture_id: int, limit: Optional[int] = None) -> Tup
 
     return lineup_rows, errors
 
-def extract_fixture_statistic(fixture_id: int, limit: Optional[int] = None) -> Tuple[List[Dict[str, Any]],List[Any]]:
+def extract_fixture_statistic(fixture_id: int, team_id: int, limit: Optional[int] = None) -> Tuple[List[Dict[str, Any]],List[Any]]:
 
-    fixture_statistic = fetch_fixture_statistic(fixture_id=fixture_id)
+    fixture_statistic = fetch_fixture_statistic(fixture_id=fixture_id, team_id=team_id)
     data = fixture_statistic.get("response",[]) or []
     errors = fixture_statistic.get("errors", []) or fixture_statistic.get("error", []) or []
 
@@ -298,20 +298,20 @@ if __name__ == "__main__":
 
 
     # 1) extract fixture_id(s)
-    # fixture_ids, fixture_rows, errors = extract_league_fixture(
-    #     league_id=league_id,
-    #     season=season,
-    #     limit=limit
-    # )
+    fixture_ids, fixture_rows, errors = extract_league_fixture(
+        league_id=league_id,
+        season=season,
+        limit=limit
+    )
 
-    # export_json(
-    #     data=fixture_rows,
-    #     prefix=f"league_fixture_l{league_id}_s{season}"
-    # )
-    # if errors:
-    #     print("fixture list errors:", errors)
+    export_json(
+        data=fixture_rows,
+        prefix=f"league_fixture_l{league_id}_s{season}"
+    )
+    if errors:
+        print("fixture list errors:", errors)
     
-    # fixture_map = {r.get("fixture_id"): r for r in fixture_rows}
+    fixture_map = {r.get("fixture_id"): r for r in fixture_rows}
 
     # for fixture_id in fixture_ids:
         # # 2) events
@@ -347,7 +347,7 @@ if __name__ == "__main__":
         # if errors:
         #     print("event errors:", errors)
         
-        # # 5) fixture_player_statistic
+        # 5) fixture_player_statistic
         # fixture_row = fixture_map.get(fixture_id)
         # if not fixture_row:
         #     print(f"no fixture_row found for fixture_id={fixture_id}")

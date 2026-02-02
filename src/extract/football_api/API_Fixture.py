@@ -83,7 +83,7 @@ def fetch_fixture_lineups(fixture_id: int) -> Optional[Dict[str, Any]]:
 # Fetch Team Statisics by Fixture ID
 @rate_limited(API_SPORTS_DAILY_LIMITER)
 @rate_limited(API_SPORTS_MINUTE_LIMITER)
-def fetch_fixture_statistic(fixture_id: int) -> Optional[Dict[str, Any]]:
+def fetch_fixture_statistic(fixture_id: int, team_id: int) -> Optional[Dict[str, Any]]:
     load_dotenv("env.sv")
     api_key = os.getenv("FOOTBALL_API_KEY")
     if not api_key:
@@ -94,6 +94,7 @@ def fetch_fixture_statistic(fixture_id: int) -> Optional[Dict[str, Any]]:
     }
     params = {
         "fixture": fixture_id,
+        "team": team_id
     }    
     response = requests.get(url, headers=headers, params=params, timeout=30)
     if response.status_code == 200:
