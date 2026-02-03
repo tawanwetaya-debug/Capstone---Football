@@ -131,7 +131,7 @@ def main():
                 # 1) fixture information
                 # ========================
                 stage = "fixture_info"
-
+                print(f'beginning fetch data for fixture event {lg}{ss}')
                 fixture_ids, fixture_rows, errors = extract_league_fixture(league_id=lg,season=ss)
 
                 # figure out where to start (fixture id)
@@ -192,8 +192,8 @@ def main():
                 # ========================
                 # 2) fixture event
                 # ========================
-                stage = "fixture_event"                    
-
+                stage = "fixture_event"  
+                print(f'beginning fetch data for fixture event')                  
                 buffer = []
                 BATCH_SIZE = 1000
 
@@ -239,6 +239,7 @@ def main():
                 # 3) fixture line up
                 # ========================
                 stage = "fixture_line_up"
+                print(f'beginning fetch data for fixture lineup')
 
                 buffer = []
                 BATCH_SIZE = 1000
@@ -257,7 +258,6 @@ def main():
                             json.dumps(row["payload"])
 
                     ])
-
 
                     if len(buffer) >= BATCH_SIZE:
 
@@ -280,133 +280,227 @@ def main():
                     conn.commit()
                     buffer.clear()
 
-
                 # ✅ save NEXT fixture index (resume point)
                 save_cursor(lg_i, ss_i, fixture_i + 1)
-
-                # optional: after finishing fixture_info fully for this season, reset fixture cursor
-                save_cursor(lg_i, ss_i, 0)
-
-                # ========================
-                # 4) fixture team statistics 
-                # ========================
-
-                stage = "fixture_team_statistics"
-
-                fixture_rows, errors = extract_fixture_statistic(fixture_id=fixture_id)
-
-                buffer = []
-                BATCH_SIZE = 1000
-
-                buffer.append([
-                    now_ingested(), 
-                    lg, 
-                    ss, 
-                    fixture_id, 
-                    json.dumps(row["payload"])
-                   
-                ])
-
-                insert_raw(
-                        conn,
-                        "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_STATISTICS",
-                        ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],
-                    )
-                
-                conn.commit()
-                buffer.clear()   
-
-                # ✅ save NEXT fixture index (resume point)
-                save_cursor(lg_i, ss_i, fixture_i + 1)
-
-                # optional: after finishing fixture_info fully for this season, reset fixture cursor
-                save_cursor(lg_i, ss_i, 0)                
+ 
                 
                 # ========================
-                # 5) fixture match prediction
+                # 4) fixture match prediction
                 # ========================
 
                 stage = "fixture_team_prediction"
+                print(f'beginning fetch data for fixture match prediction')                        
 
                 fixture_rows, errors = extract_fixture_predictions(fixture_id=fixture_id)
+
+                if errors:
+                    # decide your behavior: skip and move on OR stop
+                    # skip this fixture (move cursor forward so pipeline doesn't get stuck)
+                    save_cursor(lg_i, ss_i, fixture_i + 1)
+                    # optionally log errors[:3]
+                    # print("fixture_predictions errors:", errors[:3])
+                    continue
+
 
                 buffer = []
                 BATCH_SIZE = 1000                
 
+                for row in fixture_rows:
+                    buffer.append([
+                            now_ingested(), 
+                            lg, 
+                            ss, 
+                            fixture_id, 
+                            row['team_id'],
+                            json.dumps(row["payload"])
 
-                insert_raw(
-                        conn,
-                        "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_PREDICTIONS",
-                        ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],
-                        [now_ingested(), lg, ss, fixture_id, json.dumps(row["payload"])]
-                    )
-                conn.commit()
+                    ])                    
+                   
+                    if len(buffer) >= BATCH_SIZE:     
+
+                        insert_raw_many(
+                                conn,
+                                "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_PREDICTIONS",
+                                ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],buffer
+                                        )
+                    
+                        conn.commit()
+                        buffer.clear()
+
+                if buffer:
+                    insert_raw_many(
+                            conn,
+                            "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_PREDICTIONS",
+                            ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],
+                            buffer
+                        )
+                    conn.commit()
+                    buffer.clear()                
 
                 # ✅ save NEXT fixture index (resume point)
                 save_cursor(lg_i, ss_i, fixture_i + 1)
 
-                # optional: after finishing fixture_info fully for this season, reset fixture cursor
-                save_cursor(lg_i, ss_i, 0)   
-
                 # ========================
-                # 6) fixture odds
+                # 5) fixture odds
                 # ========================
 
                 stage = "fixture_team_prediction"
+                print(f'beginning fetch data for fixture odds')     
 
                 fixture_rows, errors = extract_fixture_odds(fixture_id=fixture_id)
 
-                insert_raw(
+                if errors:
+                    save_cursor(lg_i, ss_i, fixture_i + 1)
+                    # optionally log errors[:3]
+                    # print("fixture_predictions errors:", errors[:3])
+                    continue 
+
+                buffer = []
+                BATCH_SIZE = 1000    
+
+                for row in fixture_rows:
+                    buffer.append([
+                        now_ingested(), 
+                        lg, 
+                        ss, 
+                        fixture_id, 
+                        json.dumps(row["payload"])
+                    ])
+
+                    if len(buffer) >= BATCH_SIZE:     
+                        insert_raw_many(
                         conn,
                         "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_ODDS",
                         ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],
-                        [now_ingested(), lg, ss, fixture_id, json.dumps(row["payload"])]
-                    )
-                conn.commit()
+                        buffer
+                        )
+
+                        conn.commit()
+                        buffer.clear()
+                                    
+                if buffer:
+                    insert_raw_many(
+                            conn,
+                            "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_PREDICTIONS",
+                            ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],
+                            buffer
+                        )
+                    conn.commit()
+                    buffer.clear() 
 
                 # ✅ save NEXT fixture index (resume point)
                 save_cursor(lg_i, ss_i, fixture_i + 1)
 
-                # optional: after finishing fixture_info fully for this season, reset fixture cursor
-                save_cursor(lg_i, ss_i, 0)   
-
 
                 # ========================
-                # 6) fixture player statistics
+                # 6) fixture team statistics & player statistics
                 # ========================
 
                 stage = "fixture_player_statistics"
+                print(f'beginning fetch fixture team statistics & player statistics')                     
 
                 fixture_row = fixture_row_by_id.get(fixture_id)
+                if not fixture_row:
+                    raise ValueError(f"fixture_id {fixture_id} not found in fixture_row_by_id")
+
 
                 team_ids = [
                     fixture_row.get("home_team_id"),
                     fixture_row.get("away_team_id"),
                 ]
 
+                BATCH_SIZE = 1000
                 for idx, team_id in enumerate (team_ids):
                     if not team_id:
                         continue
 
                     side = 'home' if idx == 0 else "away"
 
+                    #  fixture team statistics
+                    fixture_rows, errors = extract_fixture_statistic(fixture_id=fixture_id, team_id= team_id)
+
+                    buffer = []
+
+                    for row in fixture_rows:
+
+                        buffer.append([
+                                now_ingested(), 
+                                lg, 
+                                ss, 
+                                fixture_id, 
+                                row['team_id'],
+                                row['side'],
+                                json.dumps(row["payload"])
+                            
+                            ])
+
+                        if len(buffer) >= BATCH_SIZE:     
+                    
+                            insert_raw_many(
+                                        conn,
+                                        "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_STATISTICS",
+                                        ["ingested_at", "league_id", "season", "fixture_id","team_id",'side', "payload"],buffer
+                                    )
+                                
+                            conn.commit()
+                            buffer.clear()   
+                    if buffer:
+                        insert_raw_many(
+                                conn,
+                                "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_STATISTICS",
+                                ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],buffer
+                                )
+                                
+                        conn.commit()
+                        buffer.clear()                          
+
+
+                    #  fixture player statistics
+
                     player_rows, player_errors = extract_fixture_players_statistic(fixture_id=fixture_id,team_id=team_id,side = side)
+
+                    buffer = []
+                    BATCH_SIZE = 1000
+
                         
                     for player_row in player_rows:
+                        buffer.append([
+                                now_ingested(), 
+                                lg, 
+                                ss, 
+                                fixture_id, 
+                                player_row['team_id'],
+                                json.dumps(player_row["payload"])
+                            
+                            ])
 
-                        insert_raw(
+                        if len(buffer) >= BATCH_SIZE:    
+
+                            insert_raw_many(
                                 conn,
                                 "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_PLAYERS_STATISTIC",
-                                ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],
-                                [now_ingested(), lg, ss, fixture_id, json.dumps(row["payload"])]
+                                ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],buffer
+                                )
+                            conn.commit()
+                            buffer.clear()
+                    if buffer:
+                        insert_raw_many(
+                            conn,
+                            "FOOTBALL_CAPSTONE.RAW.RAW_FIXTURE_PLAYERS_STATISTIC",
+                            ["ingested_at", "league_id", "season", "fixture_id","team_id", "payload"],buffer
                             )
                         conn.commit()
+                        buffer.clear()                                                
 
                     # ✅ save NEXT fixture index (resume point)
                     save_cursor(lg_i, ss_i, fixture_i + 1)
 
-                    # optional: after finishing fixture_info fully for this season, reset fixture cursor
-                    save_cursor(lg_i, ss_i, 0)   
+                # optional: after finishing fixture_info fully for this season, reset fixture cursor
+                save_cursor(lg_i, ss_i+1, 0)   
+ 
+
+            # optional: after finishing fixture_info fully for this season, reset fixture cursor
+            save_cursor(lg_i+1, 0, 0)            
                 
     finally:
         conn.close()
