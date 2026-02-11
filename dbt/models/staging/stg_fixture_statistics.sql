@@ -7,7 +7,7 @@ with src as (
         season,
         fixture_id,
         payload
-    from {{ source('football_capstone', 'raw_fixture_statistics') }}
+    from {{ source('football_capstone', 'RAW_FIXTURE_STATISTICS') }}
 ),
 
 -- explode statistics[] to rows first
@@ -60,6 +60,7 @@ final as (
 
         max(case when stat_type = 'Passes %'
                  then try_to_number(replace(stat_value_raw::string, '%','')) end) as passes_pct
+                 
 
     from stats
     group by

@@ -3,7 +3,7 @@ version: 2
 models:
 
   - name: stg_league
-    columnns:
+    columns:
       - name: league_id
         tests: [not_null]
       - name: season
@@ -22,17 +22,18 @@ models:
       
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - league_id
-            - season
+          arguments:
+            combination_of_columns:
+              - league_id
+              - season
       - dbt_utils.expression_is_true:
           expression: "season_start_date <= season_end_date"      
       - dbt_utils.expression_is_true:
           expression: "country_code is null or regexp_like(country_code, '^[A-Z]{2}$')"
       
       
-  - name: sql_teams_info
-    columnns:
+  - name: stg_teams_info
+    columns:
       - name: league_id
         tests: [not_null]
       - name: season
@@ -96,20 +97,6 @@ models:
         tests:
           - not_null
 
-      # --------- percentage stats ----------
-      - name: ball_possession_pct
-        description: "Ball possession percentage as number (0-100)."
-        tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: "ball_possession_pct is null or (ball_possession_pct >= 0 and ball_possession_pct <= 100)"
-
-      - name: passes_pct
-        description: "Pass accuracy percentage as number (0-100)."
-        tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: "passes_pct is null or (passes_pct >= 0 and passes_pct <= 100)"        
     
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -120,5 +107,57 @@ models:
               - fixture_id
               - team_id
 
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "ball_possession_pct is null or (ball_possession_pct >= 0 and ball_possession_pct <= 100)"
 
-      
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "passes_pct is null or (passes_pct >= 0 and passes_pct <= 100)"                  
+
+  - name: stg_fixture_info
+    columns:
+      - name: api_fixture_id
+        tests:
+          - not_null
+      - name: league_id
+        tests:
+          - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: fixture_date_utc
+        tests:
+          - not_null
+      - name: fixture_timezone
+        tests:
+          - not_null
+      - name: status_short
+        tests:
+          - not_null
+      - name: status_long
+        tests:
+          - not_null
+      - name: venue_id
+        tests:
+          - not_null
+      - name: venue_name
+        tests:
+          - not_null
+      - name: home_team_id
+        tests:
+          - not_null
+      - name: away_team_id
+        tests:
+          - not_null
+      - name: payload_response
+        tests:
+          - not_null
+          
+    tests:
+    - dbt_utils.unique_combination_of_columns:
+        arguments:
+          combination_of_columns:
+            - league_id
+            - season
+            - payload_response
