@@ -56,5 +56,69 @@ models:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [league_id, team_id,season]  
       
+  
+  - name: stg_fixture_statistics
+    columns:
+      - name: ingested_at
+        description: "Ingestion timestamp."
+        tests:
+          - not_null
+
+      - name: league_id
+        tests:
+          - not_null
+
+      - name: season
+        tests:
+          - not_null
+
+      - name: fixture_id
+        tests:
+          - not_null
+          # Uncomment if you have a fixtures model/table
+          # - relationships:
+          #     to: ref('stg_fixtures')
+          #     field: fixture_id
+
+      - name: team_id
+        tests:
+          - not_null
+          # Uncomment if you have a teams model/table
+          # - relationships:
+          #     to: ref('stg_teams_info')
+          #     field: team_id
+
+      - name: team_name
+        tests:
+          - not_null
+
+      - name: team_logo_url
+        tests:
+          - not_null
+
+      # --------- percentage stats ----------
+      - name: ball_possession_pct
+        description: "Ball possession percentage as number (0-100)."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "ball_possession_pct is null or (ball_possession_pct >= 0 and ball_possession_pct <= 100)"
+
+      - name: passes_pct
+        description: "Pass accuracy percentage as number (0-100)."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "passes_pct is null or (passes_pct >= 0 and passes_pct <= 100)"        
+    
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - league_id
+              - season
+              - fixture_id
+              - team_id
+
 
       

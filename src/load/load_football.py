@@ -230,18 +230,11 @@ def main():
                         row
                     )
                     conn.commit()
-
-
+                    save_cursor(lg_i, ss_i, team_id)
             # ========================
             # 4) players statisitics
             # ========================
                     stage = "player_stats"
-                
-                    key = (lg, ss, team_id)
-                    if key in seen:
-                        continue
-                    seen.add(key)
-
 
                     print(f'beginning fetch player statistics for league {team_id}{lg}{ss}')
 
@@ -263,7 +256,9 @@ def main():
                         )
                         conn.commit()
                         buffer.clear()
-                        save_cursor(lg_i, ss_i, next_team_i)
+                        save_cursor(lg_i, ss_i, team_id)
+
+
 
 
                 # save_cursor(lg_i, ss_i, next_team_i)
