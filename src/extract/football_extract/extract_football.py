@@ -89,6 +89,7 @@ def extract_team_ids(
 def extract_team_statistics(
         league_id: int,
         season: int,
+        team_id: int,
         limit: Optional[int] = None
 ) ->  Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
@@ -252,7 +253,7 @@ def extract_team_transfer(team_id: int,
 
     return raw_rows
 
-def extract_players_statisitics_byseason(team_id: int,
+def extract_players_statistics_byseason(team_id: int,
     season: int,
     league_id: int,
      limit: Optional[int] = None

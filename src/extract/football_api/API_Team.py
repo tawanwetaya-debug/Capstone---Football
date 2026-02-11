@@ -49,6 +49,7 @@ def fetch_team_statistics(team_id: int, season: int, league_id: int, date: Optio
         "season": season,
         "team": team_id,
         "league": league_id,
+        "team" : team_id
 
     }
 

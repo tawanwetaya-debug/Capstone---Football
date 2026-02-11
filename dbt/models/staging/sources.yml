@@ -1,0 +1,130 @@
+version: 2
+
+sources:
+  - name: football_capstone
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: RAW
+
+    tables:
+      - name: raw_league
+        identifier: raw_league
+        description: 'RAW Information about League'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"
+
+      - name: raw_teams_info
+        identifier: RAW_TEAMS_INFO
+        description: 'RAW Information about team info'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"
+
+      - name: RAW_TEAMS_Transfer
+        description: 'RAW Information about team transfer'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"
+
+      - name: RAW_TEAMS_STATISTICS
+        description: 'RAW Information about team statistics'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"
+
+      - name: RAW_TEAMS_SQUADS
+        description: 'RAW Information about team squads'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"
+
+      - name: RAW_TEAMS_TRANSFER
+        description: 'RAW Information about team transfer'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"
+
+      - name: RAW_FIXTURE_STATISTICS
+        description: 'RAW Information about fixture statistics'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"    
+
+      - name: RAW_FIXTURE_EVENT
+        description: 'RAW Information about fixture events'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"    
+
+      - name: RAW_FIXTURE_INFO
+        description: 'RAW Information about fixture info'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"    
+
+      - name: RAW_FIXTURE_LINE_UP
+        description: 'RAW Information about fixture line up'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"    
+    
+      - name: RAW_FIXTURE_PREDICTIONS
+        description: 'RAW Information about fixture prediction'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"        

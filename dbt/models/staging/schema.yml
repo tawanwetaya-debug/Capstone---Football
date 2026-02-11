@@ -1,0 +1,60 @@
+version: 2
+
+models:
+
+  - name: stg_league
+    columnns:
+      - name: league_id
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: country_name
+        tests: [not_null]
+      - name: country_code
+        tests: [not_null]
+      - name: season_start_date
+        tests: [not_null]
+      - name: season_end_date
+        tests: [not_null]
+
+      
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_id
+            - season
+      - dbt_utils.expression_is_true:
+          expression: "season_start_date <= season_end_date"      
+      - dbt_utils.expression_is_true:
+          expression: "country_code is null or regexp_like(country_code, '^[A-Z]{2}$')"
+      
+      
+  - name: sql_teams_info
+    columnns:
+      - name: league_id
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]
+      - name: team_founded
+        tests: [not_null]
+      - name: venue_id
+        tests: [not_null]
+      - name: venue_name
+        tests: [not_null]
+      - name: venue_capacity
+        tests: [not_null]        
+      
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_id, team_id,season]  
+      
+
+      

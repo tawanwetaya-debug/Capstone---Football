@@ -29,12 +29,7 @@ def snowflake_conn():
         role=os.getenv("SNOWFLAKE_ROLE"),
     )
 
-def insert_raw_many(conn, table: str, cols: List[str], rows: Sequence[Sequence[Any]]):
-    """
-    rows: list of value-lists aligned with cols
-    - ingested_at is cast to TIMESTAMP_NTZ
-    - payload is parsed to VARIANT
-    """
+def insert_raw_many(conn, table, cols, rows, batch_size=200):
     if not rows:
         return
 
@@ -53,7 +48,12 @@ def insert_raw_many(conn, table: str, cols: List[str], rows: Sequence[Sequence[A
     """
 
     with conn.cursor() as cur:
-        cur.executemany(sql, rows) 
+        for i in range(0, len(rows), batch_size):
+            batch = rows[i:i + batch_size]
+
+            # run each row individually (NO rewrite possible)
+            for r in batch:
+                cur.execute(sql, r)
 
 def insert_raw(conn, table: str, cols: List[str], values: List[Any]):
     """
@@ -89,14 +89,14 @@ def main():
     # League_ID 39 = Premier League, 140 = La Liga, 135 = Serie A, 78 = Bundesliga, 61 = Ligue 1
     league_ids = [39,140,135,78,61]  # Premier League, La Liga   
     seasons = [2018,2019,2020,2021,2022,2023,2024,2025]
-
+    seen = set() 
     cursor = load_cursor()
     start_lg_i = cursor.get("league_i", 0)
     start_ss_i = cursor.get("season_i", 0)
     start_team_i = cursor.get("team_i", 0)
     start_page_i = cursor.get("page",1)
     stage = cursor.get("stage", "league_info")  # if missing, start at league_info
-
+    print("CURSOR:", start_lg_i, start_ss_i, start_team_i)
     # ========================
     # 1) extract football information
     # ========================
@@ -112,18 +112,16 @@ def main():
                 # ========================
                 # stage = "league_info"
 
-                if ss == 2025:
-                    league_rows = extract_league_data(league_id=lg, season=ss)  # list[dict]
-                    for r in league_rows:
-                        insert_raw(
-                            conn,
-                            "FOOTBALL_CAPSTONE.RAW.RAW_LEAGUE",
-                            ["ingested_at", "league_id", "season", "payload"],
-                            [now_ingested(), r["league_id"], r["season"], json.dumps(r["payload"])]
-                        )
-                    conn.commit()
-                else:
-                    continue
+                # if ss == 2025:
+                #     league_rows = extract_league_data(league_id=lg, season=ss)  # list[dict]
+                #     for r in league_rows:
+                #         insert_raw(
+                #             conn,
+                #             "FOOTBALL_CAPSTONE.RAW.RAW_LEAGUE",
+                #             ["ingested_at", "league_id", "season", "payload"],
+                #             [now_ingested(), r["league_id"], r["season"], json.dumps(r["payload"])]
+                #         )
+                #     conn.commit()
 
                 save_cursor(lg_i, ss_i, 0)  # done league_info (team index reset)
                 print(f'beginning fetch data for league {lg}{ss}')
@@ -155,319 +153,277 @@ def main():
                 for team_i in range(start_team, len(team_ids)):
                     team_id = team_ids[team_i]
 
-                    row = team_row_by_id.get(team_id)
-                    if not row:
-                        print(f"SKIP team_id={team_id} (not found in team_rows)")
-                        # if API returned ids but not rows (rare), skip safely
-                        next_team_i = team_i +1
+
+
+                    # row = team_row_by_id.get(team_id)
+                    # if not row:
+                    #     print(f"SKIP team_id={team_id} (not found in team_rows)")
+                    #     # if API returned ids but not rows (rare), skip safely
+                    #     next_team_i = team_i +1
+                    #     continue
+
+                    # buffer.append([
+                    #     now_ingested(), 
+                    #     lg, 
+                    #     ss, 
+                    #     team_id, 
+                    #     json.dumps(row["payload"])
+                    # ])
+
+                    # next_team_i = team_i + 1
+
+                #     if len(buffer) >= BATCH_SIZE:
+
+                #         insert_raw_many(
+                #             conn,
+                #             "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_INFO",
+                #             ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
+                #             )
+                #         conn.commit()
+                #         buffer.clear()
+                        
+                #         # ✅ persist cursor only after commit
+                #         save_cursor(lg_i, ss_i, next_team_i)
+
+
+                # if buffer:
+                #     insert_raw_many(
+                #         conn,
+                #         "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_INFO",
+                #         ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
+                #         )
+                #     conn.commit()
+                #     buffer.clear()
+                # # ✅ final cursor save (even if no rows/buffer)
+
+                    # ========================
+                    # 3) team statistics
+                    # ========================
+
+                    stage = "team_stats"
+
+                    print(f"beginning fetch team statistics: league={lg} season={ss} team_id ={team_id}")
+
+            #         # unpack correctly
+
+                    key = (lg, ss, team_id)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+
+                    stats_rows, errors = extract_team_statistics(league_id=lg, season=ss, team_id=team_id)
+                    print("team_id:", team_id, "rows:", len(stats_rows), "errors:", len(errors))
+
+                    if not stats_rows:
                         continue
 
-                    buffer.append([
-                        now_ingested(), 
-                        lg, 
-                        ss, 
-                        team_id, 
-                        json.dumps(row["payload"])
-                    ])
+                    # pick ONE payload (usually the first is fine, since it’s “team season stats”)
+                    first = stats_rows[0]
+                    payload_obj = first.get("payload") if isinstance(first, dict) else first
 
-                    next_team_i = team_i + 1
+                    row = [[now_ingested(), lg, ss, team_id, json.dumps(payload_obj)]]
 
-                    if len(buffer) >= BATCH_SIZE:
+                    insert_raw_many(
+                        conn,
+                        "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_STATISTICS",
+                        ["ingested_at", "league_id", "season", "team_id", "payload"],
+                        row
+                    )
+                    conn.commit()
 
+
+            # ========================
+            # 4) players statisitics
+            # ========================
+                    stage = "player_stats"
+                
+                    key = (lg, ss, team_id)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+
+
+                    print(f'beginning fetch player statistics for league {team_id}{lg}{ss}')
+
+                    stats_rows = extract_players_statistics_byseason(league_id=lg, season=ss, team_id=team_id)
+                    
+                    print("players_stats rows:", len(stats_rows), "errors:", len(errors))
+
+                    buffer = [
+                        [now_ingested(), lg, ss, team_id, json.dumps(r.get("payload"))]
+                        for r in stats_rows
+                    ]
+
+                    if buffer:
                         insert_raw_many(
                             conn,
-                            "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_INFO",
-                            ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                            )
+                            "FOOTBALL_CAPSTONE.RAW.RAW_PLAYERS_STATISTICS",
+                            ["ingested_at", "league_id", "season", "team_id", "payload"],
+                            buffer
+                        )
                         conn.commit()
                         buffer.clear()
-                        
-                        # ✅ persist cursor only after commit
                         save_cursor(lg_i, ss_i, next_team_i)
 
 
-                if buffer:
-                    insert_raw_many(
-                        conn,
-                        "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_INFO",
-                        ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                        )
-                    conn.commit()
-                    buffer.clear()
-                # ✅ final cursor save (even if no rows/buffer)
-                save_cursor(lg_i, ss_i, next_team_i)
-                print(f'beginning fetch transfer data for league {lg}{ss}')
+                # save_cursor(lg_i, ss_i, next_team_i)
+                # print(f'beginning fetch transfer data for league {team_id}{lg}{ss}')
 
                 # ========================
                 # 3) team transfers (resumable)
                 # ========================
-                if ss == 2025:
-                    stage = "team_transfers"
+                # if ss == 2025:
+                #     stage = "team_transfers"
 
-                    # If you want transfers to resume from its own position,
-                    # you should load start_team_i for transfers stage.
-                    # If you're using one cursor for everything, this works the same way:
-                    start_team = start_team_i if (lg_i == start_lg_i and ss_i == start_ss_i) else 0
+                #     # If you want transfers to resume from its own position,
+                #     # you should load start_team_i for transfers stage.
+                #     # If you're using one cursor for everything, this works the same way:
+                #     start_team = start_team_i if (lg_i == start_lg_i and ss_i == start_ss_i) else 0
       
 
-                    for team_i in range(start_team, len(team_ids)):
-                        team_id = team_ids[team_i]
-                        print(f'beginning fetch data for team {team_id} in league {lg}{ss}')
-                        transfer_rows = extract_team_transfer(team_id=team_id)
+                #     for team_i in range(start_team, len(team_ids)):
+                #         team_id = team_ids[team_i]
+                #         print(f'beginning fetch data for team {team_id} in league {lg}{ss}')
+                #         transfer_rows = extract_team_transfer(team_id=team_id)
 
-                        buffer = []
-                        BATCH_SIZE = 1000
+                        # buffer = []
+                        # BATCH_SIZE = 1000
 
-                        for r in transfer_rows:
+                        # for r in transfer_rows:
 
-                            buffer.append([
-                                now_ingested(), 
-                                lg, 
-                                ss, 
-                                team_id, 
-                                json.dumps(r["payload"])                                
-                            ])
+                        #     buffer.append([
+                        #         now_ingested(), 
+                        #         lg, 
+                        #         ss, 
+                        #         team_id, 
+                        #         json.dumps(r["payload"])                                
+                        #     ])
                         
-                        next_team_i = team_i + 1
+                        # next_team_i = team_i + 1
 
-                        if len(buffer) >= BATCH_SIZE:
+                        # if len(buffer) >= BATCH_SIZE:
 
-                            insert_raw_many(
-                                conn,
-                                "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_TRANSFER",
-                                ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                                # ✅ use ss directly (don’t rely on r["season"] existing)
+                        #     insert_raw_many(
+                        #         conn,
+                        #         "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_TRANSFER",
+                        #         ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
+                        #         # ✅ use ss directly (don’t rely on r["season"] existing)
                                 
-                            )
-                            conn.commit()
-                            buffer.clear()
+                        #     )
+                        #     conn.commit()
+                        #     buffer.clear()
                     
-                    if buffer:
-                        insert_raw_many(
-                            conn,
-                            "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_TRANSFER",
-                            ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                             # ✅ use ss directly (don’t rely on r["season"] existing)
+                    # if buffer:
+                    #     insert_raw_many(
+                    #         conn,
+                    #         "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_TRANSFER",
+                    #         ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
+                    #          # ✅ use ss directly (don’t rely on r["season"] existing)
                                 
-                        )
-                        conn.commit()
-                        buffer.clear()                        
+                    #     )
+                    #     conn.commit()
+                    #     buffer.clear()                        
                       
    
-                        # ✅ save NEXT team index
-                    save_cursor(lg_i, ss_i, next_team_i)
+                        # ✅ save NEXT team inde
+                
+
+
 
                 # ========================
-                # 3) team statistics
+                # 5) team squad ids 
                 # ========================
-                stage = "team_stats"
+                # Only look for team squad ids if season is in  2025
 
-                print(f"beginning fetch team statistics: league={lg} season={ss}")
-
-        #         # unpack correctly
-                stats_rows, errors = extract_team_statistics(league_id=lg, season=ss)
-
-                print("team_stats rows:", len(stats_rows), "errors:", len(errors))
-
-                buffer = []
-                BATCH_SIZE = 1000                
+                # if ss == 2025:
                 
-                for r in stats_rows:
+                #     stage = 'team_squads'
+                #     print(f"beginning fetch team squad and trophies: league={lg} season={ss}")
 
-                    buffer.append([
-                        now_ingested(), 
-                        lg, 
-                        ss, 
-                        team_id, 
-                        json.dumps(r["payload"])                                
-                        ])                    
+                #     player_ids, squad_rows, errors = extract_team_squad_player_ids(team_id=team_id)
 
-                    if len(buffer) >= BATCH_SIZE:
-                        insert_raw_many(
-                            conn,
-                            "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_STATISTICS",
-                            ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                        )
-                        conn.commit()
-                        buffer.clear()  
+                #     if errors:
+                #         print("team_squads errors (first 3):", errors[:3])
+                #         continue
 
-                if buffer:      
-                    insert_raw_many(
-                        conn,
-                        "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_STATISTICS",
-                        ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                    )
-                    conn.commit()
-                    buffer.clear()                      
-               
+
+                #     buffer = [
+                #         [now_ingested(), lg, ss, team_id, json.dumps(r.get("payload"))]
+                #         for r in squad_rows
+                #     ]
+
+                #     if buffer:
+                #         insert_raw_many(
+                #             conn,
+                #             "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_SQUADS",
+                #             ["ingested_at", "league_id", "season", "team_id", "payload"],
+                #             buffer
+                #         )
+                #         conn.commit()
+                #         buffer.clear() 
+
             # ========================
-            # 4) players statisitics
+            # 6) squad trophies batch 
             # ========================
-                stage = "player_stats"
 
-                print(f'beginning fetch player statistics for league {team_id}{lg}{ss}')
+                # stage = "player_trophies"
 
-                stats_rows = extract_players_statistics_byseason(league_id=lg, season=ss, team_id=team_id)
+
+                # all_player_ids = []
+                # any_errors = []
+
+                # for team_id in team_ids:
+                #     print(f'beginning fetch data for team {team_id} in league {lg}{ss}')
+                #     player_ids, squad_rows, errors = extract_team_squad_player_ids(team_id)
+
+                #     if errors:
+                #         any_errors.extend(errors)
+                #         continue
+
+                #     all_player_ids.extend(player_ids or [])
+
+                # if any_errors:
+                #     print("[trophy] squad fetch errors (first 3):", any_errors[:3])
+                #     # decide resume point here (depends where this block sits)
+                #     # save_cursor(lg_i, ss_i, team_i+1)
+                #     continue  
+
+
+                # unique_player_ids = sorted(set(all_player_ids))
+                # print(f"[trophy] unique players to fetch: {len(unique_player_ids)}")
+
+
+
+                # rows, errors = extract_player_trophies_batched(player_ids=unique_player_ids,team_id = team_id, batch_size=20)
+                # errors = errors or []
+                # rows = rows or []
+
+                # print(f"[trophy] done api: rows={len(rows)} errors={len(errors) if errors else 0}")
+
+
+                # buffer = [
+                #         [now_ingested(), lg, ss, team_id, json.dumps(r.get("payload"))]
+                #         for r in squad_rows
+                #     ]
+
+                # if buffer:
+                #     insert_raw_many(
+                #         conn,
+                #         "FOOTBALL_CAPSTONE.RAW.RAW_PLAYER_TROPHIES",
+                #         ["ingested_at", "league_id", "season", "team_id", "payload"],
+                #         buffer
+                #     )
+                #     conn.commit()
+                #     buffer.clear() 
+  
                 
-                print("players_stats rows:", len(stats_rows), "errors:", len(errors))
-
-                buffer = []
-                BATCH_SIZE = 1000       
-
-                for r in stats_rows:
-
-                    buffer.append([
-                        now_ingested(), 
-                        lg, 
-                        ss, 
-                        r['team_id'], 
-                        json.dumps(r.get("payload"))                            
-                        ])   
-                    
-
-
-                    if len(buffer) >= BATCH_SIZE:
-                        insert_raw_many(
-                            conn,
-                            "FOOTBALL_CAPSTONE.RAW.RAW_PLAYERS_STATSTICIS",
-                            ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                        
-                        )
-                        conn.commit()
-                        buffer.clear()
-                if buffer: 
-                    insert_raw_many(
-                        conn,
-                        "FOOTBALL_CAPSTONE.RAW.RAW_PLAYERS_STATSTICIS",
-                        ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                        
-                    )
-                    conn.commit()
-                    buffer.clear()
-
-                    # ========================
-                    # 5) team squad ids 
-                    # ========================
-                    # Only look for team squad ids if season is in  2025
-
-                if ss == 2025:
-                    
-                        stage = 'team_squads'
-                        print(f"beginning fetch team squad and trophies: league={lg} season={ss}")
-
-                        player_ids, squad_rows, errors = extract_team_squad_player_ids(team_id=team_id)
-
-                        if errors:
-                            print("team_squads errors (first 3):", errors[:3])
-                            continue
-
-
-                        buffer = []
-                        BATCH_SIZE = 1000 
-
-
-                        for r in squad_rows:
-
-                            buffer.append([
-                                now_ingested(), 
-                                lg, 
-                                ss, 
-                                r["team_id"], json.dumps(r["payload"])
-                            ])
-
-                            if len(buffer) >= BATCH_SIZE:
-
-                                insert_raw_many(
-                                        conn,
-                                        "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_SQUADS",
-                                        ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                                    )
-
-                                conn.commit()
-                                buffer.clear()  
-
-                        if buffer:                         
-                            insert_raw_many(
-                                conn,
-                                "FOOTBALL_CAPSTONE.RAW.RAW_TEAMS_SQUADS",
-                                ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                                )
-
-                            conn.commit()
-                            buffer.clear() 
-
-
-                    # ========================
-                    # 6) squad trophies batch 
-                    # ========================
-
-                        stage = "player_trophies"
-
-
-                        all_player_ids = []
-
-                        for team_id in team_ids:
-                            print(f'beginning fetch data for team {team_id} in league {lg}{ss}')
-                            player_ids, squad_rows, errors = extract_team_squad_player_ids(team_id)
-                            all_player_ids.extend(player_ids)
-
-
-                        if errors:
-                            save_cursor(lg_i, ss_i, team_i+1)  # หรือ team_i+1 แล้วแต่คุณอยาก skip
-                            continue    
-
-                        unique_player_ids = sorted(set(all_player_ids))
-
-                        rows, errors = extract_player_trophies_batched(player_ids=unique_player_ids,team_id = team_id, batch_size=20)
-
-                        print(f"[trophy] done api: rows={len(rows)} errors={len(errors) if errors else 0}")
-                        print("[trophy] start snowflake insert...")
-                        print("[trophy] done snowflake insert")
-
-
-                        buffer = []
-                        BATCH_SIZE = 1000 
-
-                        for r in rows:
-
-                            buffer.append([
-                                now_ingested(), 
-                                lg, 
-                                ss,
-                                team_id, 
-                                json.dumps(r["payload"]) 
-                            ])                            
-
-
-
-                            if len(buffer) >= BATCH_SIZE:
-                                insert_raw_many(
-                                        conn,
-                                        "FOOTBALL_CAPSTONE.RAW.RAW_PLAYER_TROPHIES",
-                                        ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                                
-                                    )
-                                conn.commit()
-                                buffer.clear() 
-
-                    
-                        if buffer:     
-                            insert_raw_many(
-                                conn,
-                                "FOOTBALL_CAPSTONE.RAW.RAW_PLAYER_TROPHIES",
-                                ["ingested_at", "league_id", "season", "team_id", "payload"],buffer
-                                
-                                )
-                            conn.commit()
-                            buffer.clear()   
-
 
                 # after finishing seasons for this league -> reset season cursor
-                save_cursor(lg_i, ss_i + 1, 0)
+            save_cursor(lg_i, ss_i + 1, 0)
 
 
             # # all done -> reset cursor
-            save_cursor(lg_i + 1, 0, 0)
+        save_cursor(lg_i + 1, 0, 0)
 
 
     finally:
