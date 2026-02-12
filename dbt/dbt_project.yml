@@ -37,7 +37,6 @@ models:
       +schema: STAGING
       +materialized: view
 
-
     intermediate:
       +materialized: view
 
