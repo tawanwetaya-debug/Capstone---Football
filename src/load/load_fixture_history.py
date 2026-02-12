@@ -220,8 +220,8 @@ def main():
                             conn.commit()
                             buffer.clear()
                     
-                    # ✅ save NEXT fixture index (resume point)
-                    save_cursor(lg_i, ss_i, fixture_i + 1)
+                        # ✅ save NEXT fixture index (resume point)
+                        save_cursor(lg_i, ss_i, fixture_i+1)
 
                     if buffer:
                         insert_raw_many(
