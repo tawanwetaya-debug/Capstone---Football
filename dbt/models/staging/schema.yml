@@ -205,3 +205,38 @@ models:
                 min_value: 0
                 inclusive: true
               where: "goals_against_total is not null"
+
+  - name: stg_fixture_line_up
+    description: >
+      Staging model for fixture lineups.
+      One row per fixture_id + team_id.
+      start_xi_json and substitutes_json are kept as VARIANT arrays.
+
+    columns:
+
+      - name: ingested_at
+        tests: [not_null]
+
+      - name: league_id
+        tests: [not_null]
+
+      - name: season
+        tests: [not_null]
+
+      - name: fixture_id
+        tests: [not_null]
+
+      - name: team_id
+        tests: [not_null]
+
+      - name: formation
+        tests: [not_null]
+
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "array_size(start_xi_json) = 11"
+
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "array_size(substitutes_json) >= 0"
