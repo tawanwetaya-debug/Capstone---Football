@@ -153,3 +153,14 @@ sources:
             description: "Timestamp when data was ingested"
           - name: PAYLOAD
             description: "Raw JSON payload from API"        
+
+      - name: RAW_FIXTURE_PLAYERS_STATISTIC
+        description: 'RAW Information about fixture prediction'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"                    

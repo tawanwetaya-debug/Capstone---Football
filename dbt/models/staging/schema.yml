@@ -386,3 +386,89 @@ models:
       - dbt_utils.expression_is_true:
           arguments:
             expression: "player_photo_url is null or player_photo_url like 'https:%'"
+
+
+  - name: stg_fixture_players_statistics
+
+    columns:
+      - name: ingested_at
+        tests:
+          - not_null
+      - name: league_id
+        tests:
+          - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: fixture_id
+        tests:
+          - not_null
+      - name: team_id
+        tests:
+          - not_null
+      - name: player_id
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+
+      - name: OFFSIDES
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 20
+                inclusive: true
+
+    tests:
+      # 1) Unique grain (best effort). If you want a stricter grain, add stat_index in SQL.
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - INGESTED_AT
+              - fixture_id
+              - team_id
+              - player_id
+              - player_name
+
+      # 2) Validate category JSON columns are objects when not null
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "cards_json is null or is_object(cards_json)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "dribbles_json is null or is_object(dribbles_json)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "duels_json is null or is_object(duels_json)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "fouls_json is null or is_object(fouls_json)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "games_json is null or is_object(games_json)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "goals_json is null or is_object(goals_json)"
+
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "passes_json is null or is_object(passes_json)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "penalty_json is null or is_object(penalty_json)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "shots_json is null or is_object(shots_json)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "tackles_json is null or is_object(tackles_json)"
+
+      # 3) Optional: ensure at least one category exists (not all null)
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: >
+              coalesce(cards_json, dribbles_json, duels_json, fouls_json, games_json,
+                       goals_json, offsides, passes_json, penalty_json, shots_json,
+                       tackles_json) is not null
