@@ -306,3 +306,43 @@ models:
               - season
               - fixture_id
           severity: warn
+
+  - name: stg_player_trophies
+
+    columns:
+      - name: league_id
+        tests:
+          - not_null
+      - name: player_id
+        tests:
+          - not_null
+      - name: trophy_1_league
+        tests:
+          - not_null
+      - name: trophy_1_place
+        tests:
+          - not_null
+
+      - name: payload_json
+        tests:
+          - not_null
+
+    tests:
+
+      # Ensure player has no exact duplicate trophies
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - player_id
+              - trophy_1_league
+              - trophy_1_place
+              - trophy_1_season
+
+      # Optional: season format check (allow null)
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: >
+              (
+                trophy_1_league is not null
+                and trophy_1_season is not null
+              )

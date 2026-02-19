@@ -63,6 +63,19 @@ sources:
           - name: PAYLOAD
             description: "Raw JSON payload from API"
 
+      - name: RAW_PLAYER_TROPHIES
+        description: 'RAW Information about player trophies'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"
+        
+
+
       - name: RAW_TEAMS_TRANSFER
         description: 'RAW Information about team transfer'
         config:
