@@ -240,3 +240,69 @@ models:
       - dbt_utils.expression_is_true:
           arguments:
             expression: "array_size(substitutes_json) >= 0"
+
+  - name: stg_fixture_predictions
+    description: >
+      Staging model for fixture predictions.
+      One row per fixture_id.
+      Predictions are kept as VARIANT.
+    columns:
+      - name: ingested_at
+        tests:
+          - not_null
+
+      - name: league_id
+        tests:
+          - not_null
+
+      - name: season
+        tests:
+          - not_null
+
+      - name: fixture_id
+        tests:
+          - not_null
+
+      - name: team_home_id
+        tests:
+          - not_null
+      - name: team_away_id
+        tests:
+          - not_null
+      - name: advice
+        tests:
+          - not_null
+
+
+    tests:
+
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "PERCENT_AWAY is null or (PERCENT_AWAY >= 0 and PERCENT_AWAY <= 100) "
+
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "PERCENT_HOME is null or (PERCENT_HOME >= 0 and PERCENT_HOME <= 100) "
+
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "PERCENT_DRAW is null or (PERCENT_DRAW >= 0 and PERCENT_DRAW <= 100) "
+
+  # ✅ Sum must equal 100 (when all three are present)
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: >
+              (
+                PERCENT_AWAY is null
+                or PERCENT_HOME is null
+                or PERCENT_DRAW is null
+                or (PERCENT_AWAY + PERCENT_HOME + PERCENT_DRAW between 99 and 101)
+              )
+
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - league_id
+              - season
+              - fixture_id
+          severity: warn

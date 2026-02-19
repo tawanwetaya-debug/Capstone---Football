@@ -24,6 +24,7 @@ stats as (
 
         st.value:type::string          as stat_type,
         st.value:value                 as stat_value_raw
+        
     from src s,
          lateral flatten(input => s.payload:statistics) st
 ),
