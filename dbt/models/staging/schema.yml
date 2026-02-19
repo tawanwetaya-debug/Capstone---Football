@@ -346,3 +346,43 @@ models:
                 trophy_1_league is not null
                 and trophy_1_season is not null
               )
+
+  - name: stg_players_statistics
+    columns:
+
+      - name: player_id
+        tests:
+          - not_null
+
+      - name: league_id
+        tests:
+          - not_null
+
+      - name: season
+        tests:
+          - not_null
+
+      - name: team_id
+        tests:
+          - not_null
+      # JSON existence sanity checks
+      - name: games_json
+        tests:
+          - not_null
+
+      - name: goals_json
+        tests:
+          - not_null
+
+      - name: passes_json
+        tests:
+          - not_null
+
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "player_age is null or player_age between 15 and 50"
+
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "player_photo_url is null or player_photo_url like 'https:%'"
