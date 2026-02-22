@@ -1,24 +1,29 @@
 {{ config(materialized='view', enabled=true) }}
+
 with src as (
     select
         ingested_at,
         league_id,
         season,
         fixture_id,
-        payload
+
+        -- if payload is already VARIANT, this keeps it; if it's a string, it parses it
+        try_parse_json(payload) as p
     from {{ source('football_capstone', 'RAW_FIXTURE_INFO') }}
 ),
 
--- explode payload.response[]
 resp as (
     select
-        s.ingested_at,
-        s.league_id,
-        s.season,
-        s.fixture_id,
-        r.value as resp_value
-    from src s,
-         lateral flatten(input => s.payload:response) r
+        ingested_at,
+        league_id,
+        season,
+        fixture_id,
+
+        -- handle both: response is ARRAY or OBJECT
+        iff(is_array(p:response), p:response[0], p:response) as resp_value
+    from src
+    where p is not null
+      and p:response is not null
 ),
 
 final as (
@@ -89,8 +94,7 @@ final as (
         resp_value:score:penalty:away::number                          as score_p_away,
 
         -- keep raw response for debugging
-        resp_value                                                   as payload_response
-
+        resp_value                                                     as payload_response
     from resp
 )
 

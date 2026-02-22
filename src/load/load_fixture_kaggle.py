@@ -1,5 +1,6 @@
 import os
 import json
+import csv
 from datetime import datetime, timezone
 from pathlib import Path
 import time
@@ -27,6 +28,10 @@ def snowflake_conn():
         role=os.getenv("SNOWFLAKE_ROLE"),
     )
 
+def now_ingested_ntz_str() -> str:
+    # Snowflake-friendly string for TO_TIMESTAMP_NTZ
+    return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
 def insert_raw(conn, table: str, cols: List[str], values: List[Any]):
     """
     values: python list aligned with cols
@@ -53,4 +58,44 @@ def main():
     load_env()
     conn = snowflake_conn()
 
+    table = "FOOTBALL_CAPSTONE.RAW.FOOTBALL_MANAGER_RAW"
 
+    fm_folder = fetch_fm_data()          # returns WindowsPath
+    fm_folder = Path(fm_folder)
+
+    if not fm_folder.exists():
+        raise FileNotFoundError(f"FM folder not found: {fm_folder}")
+
+    inserted = 0
+    try:
+        # your extractor produced CSV, so scan CSV
+        for file in fm_folder.glob("**/*.csv"):
+            print(f"Processing {file.name}")
+
+            extracted_at = datetime.utcnow().isoformat() + "+00:00"  # for TIMESTAMP_TZ
+
+            with open(file, "r", encoding="utf-8", newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    payload_obj = row
+                    ingested_at = now_ingested_ntz_str()
+
+                    insert_raw(
+                        conn,
+                        table,
+                        ["ingested_at", "source_file", "payload"],
+                        [ingested_at, file.name, json.dumps(payload_obj)]
+                    )
+                    inserted += 1
+
+        conn.commit()
+        print(f"Done. Inserted {inserted} rows.")
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    main()
