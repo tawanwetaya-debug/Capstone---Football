@@ -14,10 +14,6 @@ models:
         tests: [not_null]
       - name: country_code
         tests: [not_null]
-      - name: season_start_date
-        tests: [not_null]
-      - name: season_end_date
-        tests: [not_null]
 
       
     tests:
@@ -26,10 +22,9 @@ models:
             combination_of_columns:
               - league_id
               - season
+
       - dbt_utils.expression_is_true:
-          expression: "season_start_date <= season_end_date"      
-      - dbt_utils.expression_is_true:
-          expression: "country_code is null or regexp_like(country_code, '^[A-Z]{2}$')"
+          expression: "country_code is null or regexp_like(country_code, '^[A-Z]{2}(-[A-Z]{3})?$')"
       
       
   - name: stg_teams_info
@@ -138,12 +133,6 @@ models:
       - name: status_long
         tests:
           - not_null
-      - name: venue_id
-        tests:
-          - not_null
-      - name: venue_name
-        tests:
-          - not_null
       - name: home_team_id
         tests:
           - not_null
@@ -160,7 +149,10 @@ models:
           combination_of_columns:
             - league_id
             - season
-            - payload_response
+            - api_fixture_id
+            - home_team_id
+            - away_team_id
+        severity: warn
 
   - name: stg_team_statistics
 

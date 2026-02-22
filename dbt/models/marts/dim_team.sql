@@ -9,7 +9,7 @@ with team_from_info as (
     team_name:: string as team_name,
     league_id:: int as league_id,
     ingested_at 
-  from {{ ref('stg_team_info') }}
+  from {{ ref('stg_teams_info') }}
   where team_id is not null
 ),
 
@@ -29,7 +29,6 @@ team_from_fixture as (
     away_team_id:: int as away_team_id,
     away_team_name:: string as away_team_name,
     league_id:: int as league_id,
-
     ingested_at
     from {{ ref('stg_fixture_info') }}
     where away_team_id is not null
@@ -39,7 +38,7 @@ team_database as (
     select * from team_from_info
     union all
     select * from team_from_fixture
-)
+),
 
 -- clean name + dedupe
 
@@ -47,6 +46,7 @@ cleanned_data as (
     select
     team_id,
     nullif(trim(team_name), '') as team_name,
+    league_id,
     ingested_at,
     row_number() over (
         partition by team_id
@@ -60,7 +60,9 @@ select
     team_id,
     team_name,
     league_id,
-    ingested_at as last_update
+    current_timestamp as created_at,
+    current_timestamp as updated_at
+    
 from cleanned_data
 where row_num = 1
 

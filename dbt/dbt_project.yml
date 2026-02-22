@@ -34,7 +34,7 @@ models:
 
     # Config indicated by + and applies to all files under models/example/
     staging:
-      +schema: RAW_STAGING
+      +schema: STAGING
       +materialized: view
 
     intermediate:
