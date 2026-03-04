@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.5
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+
+  producer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: python -m src.kafka.produce_live_events
+    depends_on:
+      - redpanda
+
+  consumer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: python -m src.kafka.consume_live_events
+    depends_on:
+      - redpanda
+
+  dagster:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: dagster dev -h 0.0.0.0 -p 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redpanda

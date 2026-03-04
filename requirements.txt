@@ -6,7 +6,7 @@ requests==2.32.3
 pydantic==2.10.6
 python-dateutil==2.9.0.post0
 requests==2.32.3
-
+protobuf>=5.26.1,<6
 # ----------------------------
 # Data handling
 # ----------------------------
@@ -16,7 +16,7 @@ pyarrow==18.1.0
 # ----------------------------
 # Snowflake connectivity
 # ----------------------------
-snowflake-connector-python==3.12.4
+snowflake-connector-python>=3.12.0,<4
 snowflake-sqlalchemy==1.6.1
 SQLAlchemy==2.0.36
 
@@ -27,7 +27,7 @@ dagster==1.12.17
 dagster-webserver==1.12.17
 dagster-dbt==0.28.17
 dagster-snowflake==0.28.17
-dagster-kafka==0.28.17
+dagster-kafka==1.3.1
 dagster-docker==0.28.17
 
 # ----------------------------

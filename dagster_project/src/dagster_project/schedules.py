@@ -1,4 +1,5 @@
 from dagster import ScheduleDefinition, AssetSelection, AssetKey, define_asset_job
+from dagster import schedule
 
 # Helper: schema-aware AssetSelection
 def k(schema: str, name: str) -> AssetSelection:
@@ -43,3 +44,20 @@ history_job = define_asset_job(
 
 live_schedule = ScheduleDefinition(job=live_job, cron_schedule="*/2 * * * *")
 history_schedule = ScheduleDefinition(job=history_job, cron_schedule="0 2 */2 * *")
+
+@schedule(cron_schedule="0 2 * * *", job_name="load_fixture_league_job")
+def daily_fixture_history():
+    return {}
+
+@schedule(cron_schedule="*/1 * * * *", job_name="load_fixture_live_job")
+def live_fixture_poll():
+    return {}
+
+@schedule(cron_schedule="*/1 * * * *", job_name="consume_fixture_live_job")
+def consume_fixture_live_poll():
+    return {}
+
+
+@schedule(cron_schedule="0 */3 * * *", job_name="load_football_job")
+def refresh_football():
+    return {}
