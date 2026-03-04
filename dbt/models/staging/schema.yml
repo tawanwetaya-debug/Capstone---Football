@@ -47,10 +47,12 @@ models:
         tests: [not_null]
       - name: venue_capacity
         tests: [not_null]        
-      
+
+# happen due to multiple run of the same league/season with different teams (e.g. due to API changes). We keep all for historical traceability, but warn about duplicates.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [league_id, team_id,season]  
+          severity: warn
       
   
   - name: stg_fixture_statistics
@@ -464,3 +466,36 @@ models:
               coalesce(cards_json, dribbles_json, duels_json, fouls_json, games_json,
                        goals_json, offsides, passes_json, penalty_json, shots_json,
                        tackles_json) is not null
+  - name: stg_football_manager
+
+    columns:
+      - name: ingested_at
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null      
+
+  - name: stg_kafka_fixture_live_events
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - topic
+            - partition
+            - offset
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "message_key = fixture_id"      
+
+
+    columns:
+      - name: topic
+        tests: [not_null]
+      - name: partition
+        tests: [not_null]
+      - name: offset
+        tests: [not_null]
+      - name: message_key
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]

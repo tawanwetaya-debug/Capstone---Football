@@ -19,3 +19,9 @@ set -a
 source env.sv
 set +a
 env | grep SNOWFLAKE
+
+
+dbt clean
+dbt deps
+dbt ls --select stg_kafka
+dbt test --select stg_kafka_fixture_live_events --no-partial-parse

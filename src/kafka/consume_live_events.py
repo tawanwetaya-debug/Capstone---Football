@@ -83,7 +83,7 @@ def main():
     cur = conn.cursor()
 
     batch = []
-    BATCH_SIZE = 200
+    BATCH_SIZE = 100
     POLL_SECONDS = 1.0
 
     print("Consumer started. Reading Kafka and writing to Snowflake...")

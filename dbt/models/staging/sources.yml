@@ -163,5 +163,29 @@ sources:
           - name: INGESTED_AT
             description: "Timestamp when data was ingested"
           - name: PAYLOAD
-            description: "Raw JSON payload from API"                    
+            description: "Raw JSON payload from API"       
+
+      - name: FOOTBALL_MANAGER_RAW
+        description: 'RAW Information about football manager'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: PAYLOAD
+            description: "Raw JSON payload from API"
+
+      - name: KAFKA_FIXTURE_LIVE_EVENTS
+        descrption: 'data from live stream'
+        config:
+          loaded_at_field: INGESTED_AT
+
+        columns:
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"
+          - name: Message_value
+            description: "Raw message event from API"
+
+
 

@@ -23,11 +23,12 @@ SQLAlchemy==2.0.36
 # ----------------------------
 # Orchestration (Dagster)
 # ----------------------------
-dagster==1.9.10
-dagster-webserver==1.9.10
-
-# If you want schedules/daemon in Docker:
-dagster-docker==0.25.10
+dagster==1.12.17
+dagster-webserver==1.12.17
+dagster-dbt==0.28.17
+dagster-snowflake==0.28.17
+dagster-kafka==0.28.17
+dagster-docker==0.28.17
 
 # ----------------------------
 # Quality / logging
@@ -47,3 +48,7 @@ pytest==8.3.3
 # ----------------------------
 kagglehub ==0.4.0
 
+# ----------------------------
+# Kafka connectivity
+# ----------------------------
+confluent-kafka>=2.3.0,<3.0.0
